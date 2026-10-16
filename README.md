@@ -16,6 +16,7 @@ A minimal Go web app with a production-ready Docker setup.
 ├── Dockerfile           # multi-stage: deps -> test -> build -> final
 ├── docker-compose.yml   # runs the app on port 8080
 ├── Makefile             # shortcuts for build / test / run
+├── .github/workflows/deploy.yml  # CI/CD: build, push to ECR, deploy
 ├── .dockerignore
 └── .gitignore
 ```
@@ -70,8 +71,8 @@ git push -> GitHub Actions -> self-hosted runner (EC2)
    6. docker image prune             (clean up old images)
 ```
 
-**Authentication:** the EC2 instance uses an IAM role with a least-privilege ECR
-policy (`iam-policy.json`), so no AWS access keys are stored in GitHub.
+**Authentication:** the EC2 instance uses an IAM role to access ECR, so no AWS
+access keys are stored in GitHub.
 
 **Image tags:** each image is tagged with the short git commit SHA (traceable and
 used for deploys) and `latest`.

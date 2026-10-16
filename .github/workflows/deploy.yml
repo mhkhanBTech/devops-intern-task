@@ -1,0 +1,41 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        run: make test
+
+      - name: Build image and deploy
+        run: make up
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fs http://localhost:8080/; then
+              echo
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Health check failed"
+          docker compose logs
+          exit 1
+
+      - name: Remove old images
+        run: docker image prune -f

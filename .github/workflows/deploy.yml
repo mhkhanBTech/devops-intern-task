@@ -59,6 +59,7 @@ jobs:
         run: |
           PREV=$(docker inspect --format '{{.Config.Image}}' devops-intern-task 2>/dev/null || true)
           echo "PREV_IMAGE=$PREV" >> "$GITHUB_ENV"
+          echo "Previous image: ${PREV:-none}"
 
       - name: Deploy (pull from ECR and restart)
         run: |

@@ -13,6 +13,8 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_REGISTRY: 778977181890.dkr.ecr.ap-southeast-2.amazonaws.com
   ECR_REPOSITORY: devops-intern-task
+  # Public registry (Amazon ECR Public). Authentication always uses us-east-1.
+  PUBLIC_ECR_URI: public.ecr.aws/m5e1c7r6/devops-intern-task
 
 jobs:
   ci-cd:
@@ -56,6 +58,24 @@ jobs:
           docker push "$IMAGE_URI:$VERSION_TAG"
           docker push "$IMAGE_URI:$SHORT_SHA"
           docker push "$IMAGE_URI:latest"
+
+      # Public copy of the image (Amazon ECR Public, no AWS account needed to pull).
+      # continue-on-error: a problem here must not block the deploy or trigger a rollback.
+      - name: Login to Amazon ECR Public
+        continue-on-error: true
+        run: |
+          aws ecr-public get-login-password --region us-east-1 \
+            | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Push image to ECR Public
+        continue-on-error: true
+        run: |
+          docker tag "$IMAGE_URI:$VERSION_TAG" "$PUBLIC_ECR_URI:$VERSION_TAG"
+          docker tag "$IMAGE_URI:$VERSION_TAG" "$PUBLIC_ECR_URI:$SHORT_SHA"
+          docker tag "$IMAGE_URI:$VERSION_TAG" "$PUBLIC_ECR_URI:latest"
+          docker push "$PUBLIC_ECR_URI:$VERSION_TAG"
+          docker push "$PUBLIC_ECR_URI:$SHORT_SHA"
+          docker push "$PUBLIC_ECR_URI:latest"
 
       - name: Remember current version (for rollback)
         run: |

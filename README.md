@@ -25,6 +25,8 @@ curl http://localhost:8080/
 - [Architecture diagram](#architecture-diagram)
 - [CI/CD pipeline](#cicd-pipeline)
 - [Image tags and versioning](#image-tags-and-versioning)
+- [Live deployment](#live-deployment)
+- [Image registries](#image-registries)
 - [How would you deploy this container to AWS?](#how-would-you-deploy-this-container-to-aws)
 - [Docker best practices applied](#docker-best-practices-applied)
 - [Git conventions](#git-conventions)
@@ -197,6 +199,53 @@ docker inspect --format '{{.Config.Image}}' devops-intern-task   # full ECR imag
 docker logs devops-intern-task 2>&1 | head -3                    # version=1.0.N commit=<sha>
 docker ps --format "table {{.Names}}\t{{.Status}}"               # shows (healthy)
 ```
+
+## Live deployment
+
+The pipeline deploys every push to `main` to an AWS EC2 instance. The deployed app is reachable directly on the instance's public address, so it can be checked without running anything locally:
+
+```bash
+curl http://3.27.217.23:8080/
+# {"message":"Hello from DevOps Intern Task!","status":"running"}
+```
+
+or open <http://3.27.217.23:8080/> in a browser.
+
+| Check | Result |
+|---|---|
+| Endpoint | `http://3.27.217.23:8080/` |
+| HTTP response | JSON body `{"message":"Hello from DevOps Intern Task!","status":"running"}` |
+| Image source | pulled from Amazon ECR by the pipeline (see below) |
+
+> The live endpoint is available while the EC2 instance is running. A stopped and restarted instance without an Elastic IP gets a new public address. The local instructions above (`localhost:8080`) are for running the app on your own machine with Docker.
+
+## Image registries
+
+The same image is stored in two places:
+
+| Registry | Visibility | Address | Purpose |
+|---|---|---|---|
+| Amazon ECR (private) | needs AWS credentials | `778977181890.dkr.ecr.ap-southeast-2.amazonaws.com/devops-intern-task` | deployment source: the EC2 server pulls from here using its IAM role |
+| Amazon ECR Public | anyone, no AWS account | `public.ecr.aws/m5e1c7r6/devops-intern-task` | public copy for reviewers |
+
+**Pull the public image (no login needed):**
+
+```bash
+docker run -p 8080:8080 public.ecr.aws/m5e1c7r6/devops-intern-task:latest
+curl http://localhost:8080/
+```
+
+Gallery page: https://gallery.ecr.aws/m5e1c7r6/devops-intern-task
+
+**Use the private ECR image instead** (requires AWS credentials with ECR read access):
+
+```bash
+aws ecr get-login-password --region ap-southeast-2 \
+  | docker login --username AWS --password-stdin 778977181890.dkr.ecr.ap-southeast-2.amazonaws.com
+docker pull 778977181890.dkr.ecr.ap-southeast-2.amazonaws.com/devops-intern-task:latest
+```
+
+On the EC2 server this happens automatically in the `deploy.yml` pipeline: it logs in with the instance IAM role, pushes the new image to private ECR, pulls it with `docker compose pull`, and restarts the container.
 
 ## How would you deploy this container to AWS?
 - **Build once, store in a registry.** The pipeline builds the image, tags it with a build number and commit SHA, and pushes it to Amazon ECR. The server never builds code. It only pulls a ready, versioned image.

@@ -55,3 +55,26 @@ Run `make help` to see all commands.
 ## Git workflow
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
+
+## CI/CD
+Every push to `main` triggers `.github/workflows/deploy.yml`, which runs on a
+self-hosted GitHub Actions runner installed on an AWS EC2 instance.
+
+```
+git push -> GitHub Actions -> self-hosted runner (EC2)
+   1. make test                      (go vet + unit tests in Docker)
+   2. docker build                   (multi-stage, tagged <git-sha> and latest)
+   3. docker push                    -> Amazon ECR (ap-southeast-2)
+   4. docker compose pull + up -d    (deploys the image pulled from ECR)
+   5. curl health check              (rolls back to previous image on failure)
+   6. docker image prune             (clean up old images)
+```
+
+**Authentication:** the EC2 instance uses an IAM role with a least-privilege ECR
+policy (`iam-policy.json`), so no AWS access keys are stored in GitHub.
+
+**Image tags:** each image is tagged with the short git commit SHA (traceable and
+used for deploys) and `latest`.
+
+**Security:** fork pull request workflows require approval for all external
+contributors, and the workflow runs only on `push` to `main`.

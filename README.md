@@ -38,7 +38,9 @@ curl http://localhost:8080/
 - [How would you deploy this container to AWS?](#how-would-you-deploy-this-container-to-aws)
 - [Docker best practices applied](#docker-best-practices-applied)
 - [Git conventions](#git-conventions)
+- [Additional CI/CD experience](#additional-cicd-experience)
 - [Notes for reviewers](#notes-for-reviewers)
+- [Other CI/CD platforms](#other-cicd-platforms)
 
 ## Project structure
 ```
@@ -284,8 +286,31 @@ On the EC2 server this happens automatically in the `deploy.yml` pipeline: it lo
 ## Git conventions
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`. Each commit does one thing, and releases are tagged (for example `v1.0.0`).
 
+## Additional CI/CD experience
+
+The pipeline in this repository uses GitHub Actions, as the task requires. The same workflow (test, build, push to a registry, deploy, health check) has also been implemented with other CI/CD tools:
+
+| Platform | CI/CD tool | Runner |
+|---|---|---|
+| GitHub | Jenkins | Jenkins agent |
+| GitLab | GitLab CI/CD | self-hosted GitLab Runner |
+| GitLab | Jenkins | Jenkins agent |
+
+I can also implement the same task on GitLab CI/CD with a self-hosted GitLab Runner, or with Jenkins against a GitHub or GitLab repository, on request. A walkthrough of any of these setups is available as part of the evaluation.
+
 ## Notes for reviewers
 - **Pipeline runs:** open the repository's **Actions** tab to see every run with its logs (test, ECR push, deploy, health check).
 - **Why `deploy.yml` does not run in forks:** it needs the author's self-hosted runner and AWS account, so it is limited to this repository. Forks and pull requests run `ci.yml` on GitHub-hosted runners instead.
 - **Runner security:** fork pull request workflows require approval for all external contributors, and deployment runs only on `push` to `main`.
 - **AWS access:** the EC2 instance uses an IAM role to reach ECR, so no AWS access keys are stored in GitHub.
+
+## Other CI/CD platforms
+
+This task is implemented with GitHub Actions, as requested. I have also implemented the same build, test, publish and deploy workflow on other CI/CD platforms:
+
+| Platform | Setup I have worked with |
+|---|---|
+| GitLab CI/CD | pipelines running on a self-hosted GitLab Runner |
+| Jenkins | pipelines triggered from both GitHub and GitLab repositories |
+
+These implementations are not part of this repository, to keep the submission focused on the requested scope. If a GitLab CI/CD or Jenkins version of this pipeline would be useful for the evaluation, I can add it to this task on request.

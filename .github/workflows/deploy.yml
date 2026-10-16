@@ -30,6 +30,7 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "VERSION_TAG=1.0.${{ github.run_number }}" >> "$GITHUB_ENV"
           echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY" >> "$GITHUB_ENV"
           echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
@@ -41,14 +42,16 @@ jobs:
       - name: Build image
         run: |
           docker build --target final \
-            --build-arg VERSION="$SHORT_SHA" \
+            --build-arg VERSION="$VERSION_TAG" \
             --build-arg COMMIT="$SHORT_SHA" \
             --build-arg BUILD_DATE="$BUILD_DATE" \
+            -t "$IMAGE_URI:$VERSION_TAG" \
             -t "$IMAGE_URI:$SHORT_SHA" \
             -t "$IMAGE_URI:latest" .
 
       - name: Push image to ECR
         run: |
+          docker push "$IMAGE_URI:$VERSION_TAG"
           docker push "$IMAGE_URI:$SHORT_SHA"
           docker push "$IMAGE_URI:latest"
 
@@ -60,7 +63,7 @@ jobs:
       - name: Deploy (pull from ECR and restart)
         run: |
           echo "DEPLOYED=true" >> "$GITHUB_ENV"
-          export IMAGE="$IMAGE_URI:$SHORT_SHA"
+          export IMAGE="$IMAGE_URI:$VERSION_TAG"
           docker compose pull
           docker compose up -d --no-build --remove-orphans
 

@@ -1,12 +1,20 @@
 # DevOps Intern Task
 
-A minimal Go web app, packaged as a small Docker image and deployed to AWS EC2 by a CI/CD pipeline (GitHub Actions → Amazon ECR → EC2).
+A minimal Go web app, packaged as a small Docker image and deployed to AWS EC2 by a CI/CD pipeline (GitHub Actions → Amazon ECR → EC2). The image is also published to Amazon ECR Public.
 
 `GET /` returns:
 
 ```json
 {"message": "Hello from DevOps Intern Task!", "status": "running"}
 ```
+
+**Links**
+
+| | |
+|---|---|
+| Public image (ECR Public Gallery) | https://gallery.ecr.aws/m5e1c7r6/devops-intern-task |
+| Pull the public image | `docker pull public.ecr.aws/m5e1c7r6/devops-intern-task:latest` |
+| Live endpoint (while the EC2 instance is running) | http://3.27.217.23:8080/ |
 
 **Quick start** (needs only Docker):
 
@@ -163,7 +171,7 @@ There are two workflows:
 | Workflow | Runs on | When | What it does |
 |---|---|---|---|
 | `ci.yml` | GitHub-hosted runner | every push and pull request | test, build the image, start it and smoke test it |
-| `deploy.yml` | self-hosted runner on EC2 | push to `main`, only in the owner's repository | test, build, push to ECR, deploy, health check |
+| `deploy.yml` | self-hosted runner on EC2 | push to `main`, only in the owner's repository | test, build, push to ECR and ECR Public, deploy, health check |
 
 **Steps of `deploy.yml`:**
 
@@ -175,10 +183,11 @@ There are two workflows:
 | 4. ECR login | `aws ecr get-login-password`, using the EC2 IAM role (no stored keys) |
 | 5. Build | multi-stage `docker build --target final`, one image with three tags |
 | 6. Push | push all three tags to Amazon ECR (`ap-southeast-2`) |
-| 7. Remember | record the image that is running now (used for rollback) |
-| 8. Deploy | `docker compose pull` from ECR, then `docker compose up -d` |
-| 9. Health check | `curl` the app up to 10 times. On failure the previous image is restored |
-| 10. Clean up | remove unused images older than 24 hours |
+| 7. Push (public) | log in to Amazon ECR Public (`us-east-1`) and push the same three tags to `public.ecr.aws/m5e1c7r6/devops-intern-task`. This step cannot block the deploy |
+| 8. Remember | record the image that is running now (used for rollback) |
+| 9. Deploy | `docker compose pull` from ECR, then `docker compose up -d` |
+| 10. Health check | `curl` the app up to 10 times. On failure the previous image is restored |
+| 11. Clean up | remove unused images older than 24 hours |
 
 ## Image tags and versioning
 

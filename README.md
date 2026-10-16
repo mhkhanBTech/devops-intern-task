@@ -21,6 +21,7 @@ curl http://localhost:8080/
 - [Project structure](#project-structure)
 - [Run the app with docker-compose](#run-the-app-with-docker-compose)
 - [Run the tests](#run-the-tests)
+- [Run the health check script](#run-the-health-check-script)
 - [Architecture diagram](#architecture-diagram)
 - [CI/CD pipeline](#cicd-pipeline)
 - [Image tags and versioning](#image-tags-and-versioning)
@@ -38,6 +39,8 @@ curl http://localhost:8080/
 ├── Dockerfile                     # multi-stage: deps -> test -> build -> final
 ├── docker-compose.yml             # runs the app on port 8080
 ├── Makefile                       # shortcuts for build / test / run
+├── system_health.sh               # Bash script: CPU / memory / disk check, logs to health_log.txt
+├── health_log.txt                 # sample output of system_health.sh
 ├── .github/workflows/
 │   ├── ci.yml                     # test + build + smoke test (GitHub-hosted runner)
 │   └── deploy.yml                 # test, build, push to ECR, deploy (self-hosted runner on EC2)
@@ -88,6 +91,53 @@ make test
 ```
 
 This builds the `test` stage of the Dockerfile, which runs `go vet` and `go test`. No Go installation is needed.
+
+## Run the health check script
+
+`system_health.sh` is a standalone Bash script (Step 3). It checks **CPU**, **memory** and **disk** usage and appends a timestamped line to `health_log.txt`. If disk usage is **above 80%**, it prints `[WARNING] Disk space high!` and also records the warning in the log.
+
+**Requirements:** Linux with Bash. No Docker needed.
+
+```bash
+chmod +x system_health.sh     # only needed once
+./system_health.sh
+cat health_log.txt
+```
+
+No `sudo` is needed. Running it with `sudo` can leave `health_log.txt` owned by root.
+
+**Sample `health_log.txt`:**
+
+```
+[2026-10-16 19:53:22] CPU: 0.1% | Memory: 15.5% | Disk: 32%
+[2026-10-16 19:54:15] CPU: 0.1% | Memory: 15.4% | Disk: 91%
+[2026-10-16 19:54:15] [WARNING] Disk space high! (91% used)
+```
+
+The first line is a normal run. The last two lines are a run where disk usage was 91%, which triggered the warning.
+
+**How the metrics are read:**
+
+| Metric | Method |
+|---|---|
+| CPU | `/proc/stat` is sampled twice, one second apart. Usage = (total time difference - idle time difference) x 100 / total time difference |
+| Memory | `free`: used memory x 100 / total memory |
+| Disk | `df /`: usage percentage of the root filesystem |
+
+**Test the warning without filling the disk.** The threshold defaults to 80 and can be overridden for a single run:
+
+```bash
+DISK_THRESHOLD=20 ./system_health.sh
+grep WARNING health_log.txt
+```
+
+**Run it automatically with cron** (every 5 minutes):
+
+```
+*/5 * * * * cd /path/to/devops-intern-task && ./system_health.sh
+```
+
+The script is also published as a standalone repository: https://github.com/mhkhanBTech/system-health-monitor
 
 ## Architecture diagram
 

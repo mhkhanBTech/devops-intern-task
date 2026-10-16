@@ -16,6 +16,8 @@ env:
 
 jobs:
   ci-cd:
+    # Runs only in the owner's repository (needs the self-hosted runner on EC2)
+    if: github.repository == 'mhkhanBTech/devops-intern-task'
     runs-on: self-hosted
     steps:
       - name: Checkout code

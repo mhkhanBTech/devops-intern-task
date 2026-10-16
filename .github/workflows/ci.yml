@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tests
+        run: make test
+
+      - name: Build image
+        run: docker build --target final -t devops-intern-task:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --name app -p 8080:8080 devops-intern-task:ci
+          for i in $(seq 1 10); do
+            if curl -fs http://localhost:8080/; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs app
+          exit 1

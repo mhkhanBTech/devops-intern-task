@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build, Push to ECR and Deploy
 
 on:
   push:
@@ -9,8 +9,13 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REGISTRY: 778977181890.dkr.ecr.ap-southeast-2.amazonaws.com
+  ECR_REPOSITORY: devops-intern-task
+
 jobs:
-  deploy:
+  ci-cd:
     runs-on: self-hosted
     steps:
       - name: Checkout code
@@ -21,8 +26,43 @@ jobs:
       - name: Run tests
         run: make test
 
-      - name: Build image and deploy
-        run: make up
+      - name: Set image tags
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+      - name: Build image
+        run: |
+          docker build --target final \
+            --build-arg VERSION="$SHORT_SHA" \
+            --build-arg COMMIT="$SHORT_SHA" \
+            --build-arg BUILD_DATE="$BUILD_DATE" \
+            -t "$IMAGE_URI:$SHORT_SHA" \
+            -t "$IMAGE_URI:latest" .
+
+      - name: Push image to ECR
+        run: |
+          docker push "$IMAGE_URI:$SHORT_SHA"
+          docker push "$IMAGE_URI:latest"
+
+      - name: Remember current version (for rollback)
+        run: |
+          PREV=$(docker inspect --format '{{.Config.Image}}' devops-intern-task 2>/dev/null || true)
+          echo "PREV_IMAGE=$PREV" >> "$GITHUB_ENV"
+
+      - name: Deploy (pull from ECR and restart)
+        run: |
+          echo "DEPLOYED=true" >> "$GITHUB_ENV"
+          export IMAGE="$IMAGE_URI:$SHORT_SHA"
+          docker compose pull
+          docker compose up -d --no-build --remove-orphans
 
       - name: Health check
         run: |
@@ -37,5 +77,17 @@ jobs:
           docker compose logs
           exit 1
 
-      - name: Remove old images
-        run: docker image prune -f
+      - name: Rollback on failure
+        if: failure() && env.DEPLOYED == 'true'
+        run: |
+          if [ -n "$PREV_IMAGE" ]; then
+            echo "Rolling back to $PREV_IMAGE"
+            export IMAGE="$PREV_IMAGE"
+            docker compose up -d --no-build --remove-orphans
+          else
+            echo "No previous image to roll back to"
+          fi
+
+      - name: Clean up old images
+        if: always()
+        run: docker image prune -af --filter "until=24h"

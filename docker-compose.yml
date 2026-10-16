@@ -7,7 +7,8 @@ services:
         VERSION: ${VERSION:-dev}
         COMMIT: ${COMMIT:-none}
         BUILD_DATE: ${BUILD_DATE:-unknown}
-    image: devops-intern-task:${VERSION:-dev}
+    # In CI/CD, IMAGE is set to the ECR image URI. Locally it falls back to a local tag.
+    image: ${IMAGE:-devops-intern-task:latest}
     container_name: devops-intern-task
     ports:
       - "8080:8080"

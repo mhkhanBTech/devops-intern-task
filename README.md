@@ -40,7 +40,6 @@ curl http://localhost:8080/
 - [Git conventions](#git-conventions)
 - [Additional CI/CD experience](#additional-cicd-experience)
 - [Notes for reviewers](#notes-for-reviewers)
-- [Other CI/CD platforms](#other-cicd-platforms)
 
 ## Project structure
 ```
@@ -161,6 +160,7 @@ flowchart LR
     RUN -->|1. make test| RUN
     RUN -->|2. docker build, 3 tags| IMG[Docker image]
     IMG -->|3. docker push| ECR[(Amazon ECR)]
+    IMG -->|3b. docker push, public copy| PUB[(Amazon ECR Public)]
     ECR -->|4. docker compose pull| EC2[EC2: container on port 8080]
     RUN -->|5. health check, rollback on failure| EC2
     User[User / browser] -->|HTTP :8080| EC2
@@ -202,6 +202,8 @@ The pipeline builds **one image** and gives it **three tags** (`-t` is used thre
 | `latest` | `latest` | always points to the newest build, for quick manual pulls |
 
 The build number and commit are also compiled into the binary (printed in the startup log) and stored in the image labels.
+
+> **Note:** in the ECR console each push appears as three rows: one tagged image index and two untagged entries that belong to it. The tags (`1.0.N`, commit SHA, `latest`) are on the index row. The untagged rows are part of the index and should not be deleted.
 
 **Check what is running on the server:**
 
@@ -303,14 +305,3 @@ I can also implement the same task on GitLab CI/CD with a self-hosted GitLab Run
 - **Why `deploy.yml` does not run in forks:** it needs the author's self-hosted runner and AWS account, so it is limited to this repository. Forks and pull requests run `ci.yml` on GitHub-hosted runners instead.
 - **Runner security:** fork pull request workflows require approval for all external contributors, and deployment runs only on `push` to `main`.
 - **AWS access:** the EC2 instance uses an IAM role to reach ECR, so no AWS access keys are stored in GitHub.
-
-## Other CI/CD platforms
-
-This task is implemented with GitHub Actions, as requested. I have also implemented the same build, test, publish and deploy workflow on other CI/CD platforms:
-
-| Platform | Setup I have worked with |
-|---|---|
-| GitLab CI/CD | pipelines running on a self-hosted GitLab Runner |
-| Jenkins | pipelines triggered from both GitHub and GitLab repositories |
-
-These implementations are not part of this repository, to keep the submission focused on the requested scope. If a GitLab CI/CD or Jenkins version of this pipeline would be useful for the evaluation, I can add it to this task on request.

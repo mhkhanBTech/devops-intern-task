@@ -1,0 +1,11 @@
+# Build output
+bin/
+*.zip
+
+# Environment / secrets
+.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

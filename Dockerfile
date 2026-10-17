@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # =====================================================================
-# Production multi-stage Dockerfile (Go)
+# Production multi-stage Dockerfile (Go) 
 #   Stages:  deps -> test -> build -> final
 #   Build:   make docker-build      (passes VERSION / COMMIT / BUILD_DATE)
 # =====================================================================

@@ -9,7 +9,7 @@
 ARG GO_VERSION=1.22
 ARG ALPINE_VERSION=3.20
 
-# ---------- Stage 1: dependencies (cached layer) ----------
+# ---------- Stage 1: dependencies (cached layer) ---------- 
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS deps
 WORKDIR /src
 COPY go.mod go.sum* ./
